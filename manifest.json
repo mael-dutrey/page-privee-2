@@ -1,0 +1,21 @@
+{
+ "name": "Les ancêtres de Mamie",
+ "short_name": "Mamie",
+ "start_url": "./",
+ "scope": "./",
+ "display": "standalone",
+ "background_color": "#fbf7ef",
+ "theme_color": "#fbf7ef",
+ "icons": [
+  {
+   "src": "icone-180.png",
+   "sizes": "180x180",
+   "type": "image/png"
+  },
+  {
+   "src": "icone-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  }
+ ]
+}

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Les ancêtres de Mamie</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icone-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mamie">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#fbf7ef">
+<style>
+  html,body{margin:0;height:100%;background:#fbf7ef;color:#1d2731}
+  body{display:flex;align-items:center;justify-content:center;font:22px/1.45 Georgia,"Times New Roman",serif;padding:0 16px;box-sizing:border-box}
+  .carte{width:100%;max-width:520px;text-align:center}
+  img{width:120px;height:120px;border-radius:26px;box-shadow:0 2px 10px rgba(29,39,49,.15)}
+  h1{font-weight:normal;font-size:38px;line-height:1.15;margin:22px 0 10px;color:#1d4c63}
+  p{margin:0 0 18px}
+  form{display:none}
+  input{width:100%;box-sizing:border-box;font:inherit;font-size:26px;padding:14px 16px;border:2px solid #c9b994;border-radius:14px;background:#fff;color:#1d2731;text-align:center}
+  input:focus{outline:none;border-color:#1d4c63}
+  button{margin-top:16px;width:100%;font:inherit;font-size:26px;padding:14px;border:0;border-radius:14px;background:#1d4c63;color:#fff}
+  #etat{min-height:32px;margin-top:18px;color:#5b4a2e}
+  #etat.faux{color:#9b2f1f}
+</style>
+</head>
+<body>
+<div class="carte">
+  <img src="icone-180.png" alt="">
+  <h1>Les ancêtres de Mamie</h1>
+  <form id="f" autocomplete="off">
+    <p>Pour ouvrir la page, tape le code.</p>
+    <input id="code" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Le code">
+    <button type="submit">Ouvrir</button>
+  </form>
+  <div id="etat" role="status">Ouverture…</div>
+</div>
+<script>
+var CONF = {"v":"mamie-e24ed37ca66e","sel":"w+3+xorBc1ZJr0IozGcVgA==","tours":600000,"parts":[{"f":"p0.bin","iv":"zGS936IUzdiClD28","n":3439231},{"f":"p1.bin","iv":"cYxl0QhbGzhQSWFv","n":3439231},{"f":"p2.bin","iv":"lEqzt/6WP8xdRLwL","n":3439231},{"f":"p3.bin","iv":"GuWsl3vysrL+YGAb","n":3439231},{"f":"p4.bin","iv":"s7DPoeAjZRNU1scj","n":3439227}]};
+var CLE_CODE = 'mamie-code';   // 24/11 : jamais « ancetres-code », la clé de Papi sur la même origine
+var etat = document.getElementById('etat');
+var form = document.getElementById('f');
+
+function dire(t, faux) { etat.textContent = t; etat.className = faux ? 'faux' : ''; }
+function normalise(s) {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function deB64(s) { var b = atob(s), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
+function lire(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function ecrire(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
+
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(function () {}); }
+
+// un morceau : d'abord ce qui est gardé sur l'iPad, sinon le réseau, et on le garde pour la prochaine fois
+function morceau(nom) {
+  var cache = window.caches ? caches.open(CONF.v) : Promise.resolve(null);
+  return cache.then(function (c) {
+    return (c ? c.match(nom) : Promise.resolve(null)).then(function (r) {
+      if (r) return r.arrayBuffer();
+      return fetch(nom).then(function (rep) {
+        if (!rep.ok) throw new Error('reseau');
+        if (c) c.put(nom, rep.clone()).catch(function () {});
+        return rep.arrayBuffer();
+      }, function () { throw new Error('reseau'); });
+    });
+  });
+}
+
+function ouvrir(code) {
+  form.style.display = 'none';
+  dire('Ouverture…');
+  var cle;
+  return crypto.subtle.importKey('raw', new TextEncoder().encode(normalise(code)), 'PBKDF2', false, ['deriveKey'])
+    .then(function (base) {
+      return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: deB64(CONF.sel), iterations: CONF.tours, hash: 'SHA-256' },
+        base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+    })
+    .then(function (k) {
+      cle = k;
+      var morceaux = [], i = 0;
+      function suivant() {
+        if (i >= CONF.parts.length) return Promise.resolve(morceaux);
+        var p = CONF.parts[i];
+        dire(CONF.parts.length > 1 ? 'Chargement… ' + (i + 1) + ' sur ' + CONF.parts.length : 'Chargement…');
+        return morceau(p.f).then(function (buf) {
+          return crypto.subtle.decrypt({ name: 'AES-GCM', iv: deB64(p.iv) }, cle, buf).then(function (clair) {
+            morceaux.push(new Uint8Array(clair)); i++; return suivant();
+          }, function () { throw new Error('code'); });
+        });
+      }
+      return suivant();
+    })
+    .then(function (morceaux) {
+      ecrire(CLE_CODE, code);
+      dire('Ouverture de la page…');
+      var total = 0, j, pos = 0;
+      for (j = 0; j < morceaux.length; j++) total += morceaux[j].length;
+      var tout = new Uint8Array(total);
+      for (j = 0; j < morceaux.length; j++) { tout.set(morceaux[j], pos); pos += morceaux[j].length; }
+      var tenu = { html: new TextDecoder('utf-8').decode(tout) };
+      // la mémoire de l'iPad : les morceaux déchiffrés et leur assemblage sont lâchés avant d'écrire la page (25 Mo de moins)
+      tout = null; morceaux.length = 0;
+      setTimeout(function () { var h = tenu.html; tenu.html = null; document.open(); document.write(h); h = null; document.close(); }, 30);
+    })
+    .catch(function (e) {
+      if (e && e.message === 'code') { ecrire(CLE_CODE, null); demander('Ce n’est pas le bon code. Réessaie.'); }
+      else if (e && e.message === 'reseau') { demander('Pas de connexion : la première ouverture demande le wifi.'); }
+      else { demander('La page ne s’est pas ouverte. Réessaie.'); }
+    });
+}
+
+function demander(message) {
+  form.style.display = 'block';
+  dire(message || '', !!message);
+}
+
+form.addEventListener('submit', function (e) {
+  e.preventDefault();
+  var v = document.getElementById('code').value;
+  if (normalise(v)) ouvrir(v);
+});
+
+if (!CONF || !window.crypto || !crypto.subtle) { dire('Cet appareil ne peut pas ouvrir la page.', true); }
+else { var garde = lire(CLE_CODE); if (garde) ouvrir(garde); else demander(''); }
+</script>
+</body>
+</html>
