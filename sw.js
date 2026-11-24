@@ -1,5 +1,5 @@
-// garde la page pour l'ouvrir sans réseau ; version mamie-6545ce5e61e5
-var V = "mamie-6545ce5e61e5";
+// garde la page pour l'ouvrir sans réseau ; version mamie-82e24c9ca9fa
+var V = "mamie-82e24c9ca9fa";
 var COQUILLE = ["./","index.html","manifest.json","icone-180.png","icone-512.png"];
 var TOUS = ["./","index.html","manifest.json","icone-180.png","icone-512.png","p0.bin","p1.bin","p2.bin","p3.bin","p4.bin"];
 self.addEventListener('install', function (e) {
